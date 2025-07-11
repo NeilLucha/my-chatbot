@@ -2,10 +2,14 @@ import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
 class Chatbot:
-    def __init__(self, model_name='google/flan-t5-large'):
+    def __init__(self, model_name='google/flan-t5-base', checkpoint_path=None):
+        if checkpoint_path:
+            self.model_name = checkpoint_path
+        else:
+            self.model_name = model_name
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name).to(self.device)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_name).to(self.device)
         self.chat_history = []
         self.history_length = 5  # Default history length
 
@@ -24,7 +28,7 @@ class Chatbot:
         inputs = self.tokenizer(input_sequence, return_tensors='pt').to(self.device)
         outputs = self.model.generate(
             **inputs,
-            max_length=100,
+            max_length=500,
             do_sample=True,
             top_p=0.95,
             top_k=50,
@@ -42,11 +46,12 @@ class Chatbot:
         '''
         
         
-        
-        self.chat_history.append('user: ' + input_sequence)
+        input_sequence = input_sequence.strip()
+        input_sequence = 'Answer the question: ' + input_sequence
+        self.chat_history.append(input_sequence)
         formatted = self.format_chat_history(self.chat_history)
-        response = self.generate_response(formatted + '\nbot: ')
-        self.chat_history.append('bot: ' + response)
+        response = self.generate_response(formatted)
+        self.chat_history.append(response)
         
         #Trim the actual chat history to the last 2 * history_length messages
         # This is to ensure that the chat history does not grow too large.
@@ -62,7 +67,7 @@ class Chatbot:
         This method is used to get a response without using the chat history.
         '''
         
-        return self.generate_response(input_sequence)
+        return self.generate_response('Answer the question: ' + input_sequence)
     
     def clear_chat_history(self):
         '''
